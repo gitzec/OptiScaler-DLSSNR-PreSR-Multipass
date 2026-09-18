@@ -1427,7 +1427,9 @@ static HRESULT hkD3D12CreateDevice(IUnknown* pAdapter, D3D_FEATURE_LEVEL Minimum
         // if (Config::Instance()->UESpoofIntelAtomics64.value_or_default())
         //     UnhookDevice();
 
-        if (State::Instance().gameQuirks & GameQuirk::CreateSLOnThe2ndDevice)
+        // CreateSLOnThe2ndDevice (e.g. witcher3.exe) calls StreamlineProxy::SetD3DDevice() on the second
+        // device swap. Under Wine/Proton this call hangs indefinitely, so it is skipped on Linux.
+        if (!State::Instance().isRunningOnLinux && (State::Instance().gameQuirks & GameQuirk::CreateSLOnThe2ndDevice))
         {
             static void* lastDevice = nullptr;
 
@@ -1443,6 +1445,10 @@ static HRESULT hkD3D12CreateDevice(IUnknown* pAdapter, D3D_FEATURE_LEVEL Minimum
             }
 
             lastDevice = *ppDevice;
+        }
+        else if (State::Instance().isRunningOnLinux && (State::Instance().gameQuirks & GameQuirk::CreateSLOnThe2ndDevice))
+        {
+            LOG_WARN("Skipping CreateSLOnThe2ndDevice quirk on Linux (SetD3DDevice hangs under Wine/Proton)");
         }
 
         HookToDevice(State::Instance().currentD3D12Device);
